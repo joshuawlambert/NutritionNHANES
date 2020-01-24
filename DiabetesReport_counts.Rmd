@@ -117,16 +117,6 @@ fsafit_mh_2<-FSA(formula = "mh~1",fitfunc = svyglm,family=quasipoisson,data=dat[
 
 tab1<-data.frame(print(fsafit_mh_2))
 
-###########
-#3-Way Int#
-###########
-fsafit_mh_3<-FSA(formula = "mh~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 3,
-                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
-                 var4int = "diab",fixvar = c(adjust4b[c(1:2,4:5)],"ph")
-                 )
-
-tab2<-data.frame(print(fsafit_mh_3))
-
 ```
 
 ```{r, echo=FALSE}
@@ -148,24 +138,6 @@ f1<-svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+ph+LBXVIA*diab",
 
 
 ```
-
-<!-- \clearpage -->
-<!-- \pagebreak -->
-
-<!-- ```{r, echo=FALSE} -->
-<!-- kable(tab2, caption = "Mental Health Results for Three-Way Interactions") -->
-<!-- plot_model(svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+BMXBMI+LBXVIE*LBXVIA*diab", -->
-<!--                   design=nhanesdesign,family=quasipoisson,data=dat), type = "int", -->
-<!--            title = "LBXVIE*LBDVIA*diab") -->
-<!-- ``` -->
-
-\clearpage
-\pagebreak
-
-## For Viatamin A
-> "In contrast, elevated levels of retinyl stearate and retinyl palmitate were each estimated to enhance the risk for periodontitis particularly in smokers. The retinoids comprise a class of compounds related to Vitamin A. These compounds have been used to regulate epithelial cell growth, as well as playing a role in vision, regulation of cell proliferation and differentiation, growth of bone tissue, immune functions, and even activation of tumor suppressor genes70." 
-From this paper [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547714/)
-
 
 \clearpage
 \pagebreak
@@ -197,16 +169,6 @@ fsafit_ph_2<-FSA(formula = "ph~1",fitfunc = svyglm,family=quasipoisson,data=dat[
 
 tab1<-data.frame(print(fsafit_ph_2))
 
-###########
-#3-Way Int#
-###########
-fsafit_ph_3<-FSA(formula = "ph~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 3,
-                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
-                 var4int = "diab",fixvar =  c(adjust4b[c(1:2,4:6)],"mh")
-                 )
-
-tab2<-data.frame(print(fsafit_ph_3))
-
 ```
 
 ```{r, echo=FALSE}
@@ -217,22 +179,4 @@ plot_model(svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+LBXVIE*diab",
 f2<-svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+LBXVIE*diab",
                   design=nhanesdesign,family=quasipoisson,data=dat)
 ```
-
-<!-- \clearpage -->
-<!-- \pagebreak -->
-
-<!-- ```{r, echo=FALSE} -->
-<!-- kable(tab2, caption = "Physical Health Results for Three-Way Interactions") -->
-<!-- plot_model(svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+LBXGTC*LBXALC*diab", -->
-<!--                   design=nhanesdesign,family=quasipoisson,data=dat), type = "int", -->
-<!--            title = "g-Tocopherol*AlphaCarotene*diab") -->
-<!-- ``` -->
-
-\clearpage
-\pagebreak
-
-## For AlphaCarotene, Vit E and Diabetic Complications
-> "Our results further support the hypothesis that eating a diet rich in carotenoids, especially provitamin A carotenoids, might help prevent the development of type 2 diabetes in Japanese patients." [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4679813/)
-
-> "Supplementation of vitamin E may be a valuable strategy for controlling diabetes complications and enhancing antioxidant capacity. The effects of other micronutrients should be further investigated in larger and well-designed trials to properly place these complementary therapies in clinical practice." From [here](https://dmsjournal.biomedcentral.com/articles/10.1186/s13098-018-0318-5)
 
