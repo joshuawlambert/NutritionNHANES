@@ -1,0 +1,238 @@
+---
+title: "Diabetes MH and PH Report -- Analyzing as Counts"
+author: "Joshua Lambert, PhD"
+date: "11/6/2019"
+output: pdf_document
+---
+
+## Loading the data
+```{r,echo=FALSE, message=FALSE,}
+m3 <- read.csv("~/CON_PROJECTS/NHANES_Alc/m3_counts.csv") #file created by datapackages.R
+library(survey)
+library(tableone)
+library(knitr)
+library(nhanesA)
+library(plyr)
+library(rFSA)
+library(sjPlot)
+library(sjmisc)
+
+
+#dim(m3)
+m3<-m3[which(m3$RIDAGEYR>=18),] #remove those less than 18.
+#dim(m3)
+
+adjust4b<-c('RIDAGEYR','gender','race','edu','ses','BMXBMI',
+            'SDMVPSU','SDMVSTRA','WTINT2YR')
+
+nutr<-unique(c(grep(pattern = "lbx",x = tolower(colnames(m3))),grep(pattern = "lbd",x = tolower(colnames(m3)))))
+candidate_vars<-c(adjust4b,colnames(m3)[nutr],"diab","mh","ph")
+
+dat<-m3[,unique(candidate_vars)]
+#dim(dat)
+
+#factoring mh and ph as binary
+#dat$mh<-factor(dat$mh)
+#dat$ph<-factor(dat$ph)
+
+#dichotomize countinuous variables 1=above median, 0=below median
+medians<-lapply(X = dat[,c(10:54)],FUN = function(x){median(x,na.rm = TRUE)})
+numNA<-lapply(X = dat[,c(10:54)],FUN = function(x){sum(is.na(x))})
+mat<-cbind(t(t(medians)),t(t(numNA)))
+kable(mat[-grep(rownames(mat),pattern = "SI"),],col.names = c("Median","NumNA"))
+
+vita<-ifelse(dat$LBXVIA<60,yes = "Low-Average",no = "High")
+
+
+dat[,c(10:54)]<-lapply(X = dat[,c(10:54)],FUN = function(x){factor(dicho(x,dich.by ="median"))})
+
+dat$RIDAGEYR<-as.numeric(dat$RIDAGEYR)
+dat$BMXBMI<-as.numeric(dat$BMXBMI)
+dat$mh<-as.numeric(dat$mh)
+dat$ph<-as.numeric(dat$ph)
+
+
+vec<-grep(colnames(dat),pattern = "SI")
+#vec<-which(apply(X = dat,MARGIN = 2,FUN = function(x){sum(is.na(x))})>8588) #columns with more than 50% data missing
+dat<-dat[,-vec]
+#leaves 17176 observations and 34 columns
+
+dat$ph2<-ifelse(dat$ph>1,yes = 1,no = 0)
+dat$mh2<-ifelse(dat$mh>1, yes=1, no=0)
+```
+
+\clearpage
+\pagebreak
+
+```{r, echo=FALSE}
+kableone(CreateTableOne(vars=colnames(dat[,-c(7:10)]),data = dat[,-c(7:10)]),strata = c("diab"))
+```
+
+\clearpage
+\pagebreak
+
+```{r, echo=FALSE}
+#ph
+kableone(CreateTableOne(vars=colnames(dat[,-c(7:10,32,34,35,36)]),data = dat[,-c(7:10)],strata = c("ph2","diab")))
+```
+
+\clearpage
+\pagebreak
+
+```{r, echo=FALSE}
+#mh
+kableone(CreateTableOne(vars=colnames(dat[,-c(7:10,32,33,35,36)]),data = dat[,-c(7:10)],strata = c("mh2","diab")))
+```
+
+
+
+\clearpage
+\pagebreak
+
+# Mental Health
+Analysis based on as low as 7110 subjects after removing all missingness.
+```{r, echo=FALSE, include=FALSE}
+##########################
+#### Mental Health #######
+##########################
+nhanesdesign<-svydesign(id=~SDMVPSU,
+                        strata=~SDMVSTRA,
+                        weights=~WTINT2YR,
+                        nest=TRUE,
+                        data=dat)
+
+null_model<-svyglm(formula = "mh~RIDAGEYR+gender+race+edu+ses+BMXBMI+ph+diab",design=nhanesdesign,family=quasipoisson,data=dat)
+#race and BMI not significant will remove from null model and won't use in fixvar
+null_model<-svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+ph+diab",design=nhanesdesign,family=quasipoisson,data=dat)
+
+dim(dat[complete.cases(dat[,-c(7:10)]),])
+
+###########
+#2-Way Int#
+###########
+fsafit_mh_2<-FSA(formula = "mh~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 2,
+                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
+                 var4int = "diab",fixvar = c(adjust4b[c(1:2,4:5)],"ph")
+                 )
+
+tab1<-data.frame(print(fsafit_mh_2))
+
+###########
+#3-Way Int#
+###########
+fsafit_mh_3<-FSA(formula = "mh~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 3,
+                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
+                 var4int = "diab",fixvar = c(adjust4b[c(1:2,4:5)],"ph")
+                 )
+
+tab2<-data.frame(print(fsafit_mh_3))
+
+```
+
+```{r, echo=FALSE}
+kable(tab1, caption = "Mental Health Results for Two-Way Interactions")
+dat$via<-as.factor(vita)
+nhanesdesign<-svydesign(id=~SDMVPSU,
+                        strata=~SDMVSTRA,
+                        weights=~WTINT2YR,
+                        nest=TRUE,
+                        data=dat)
+
+plot_model(svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+ph+LBXVIA*diab",
+                  design=nhanesdesign,family=quasipoisson,data=dat), type = "int",
+           title = "LBXVIA*diab")
+summary(svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+ph+LBXVIA*diab",
+                  design=nhanesdesign,family=quasipoisson,data=dat))
+f1<-svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+ph+LBXVIA*diab",
+                  design=nhanesdesign,family=quasipoisson,data=dat)
+
+
+```
+
+<!-- \clearpage -->
+<!-- \pagebreak -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- kable(tab2, caption = "Mental Health Results for Three-Way Interactions") -->
+<!-- plot_model(svyglm(formula = "mh~RIDAGEYR+gender+edu+ses+BMXBMI+LBXVIE*LBXVIA*diab", -->
+<!--                   design=nhanesdesign,family=quasipoisson,data=dat), type = "int", -->
+<!--            title = "LBXVIE*LBDVIA*diab") -->
+<!-- ``` -->
+
+\clearpage
+\pagebreak
+
+## For Viatamin A
+> "In contrast, elevated levels of retinyl stearate and retinyl palmitate were each estimated to enhance the risk for periodontitis particularly in smokers. The retinoids comprise a class of compounds related to Vitamin A. These compounds have been used to regulate epithelial cell growth, as well as playing a role in vision, regulation of cell proliferation and differentiation, growth of bone tissue, immune functions, and even activation of tumor suppressor genes70." 
+From this paper [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547714/)
+
+
+\clearpage
+\pagebreak
+
+# Physical Health
+```{r, echo=FALSE, include=FALSE}
+##########################
+#### Physical Health #######
+##########################
+nhanesdesign<-svydesign(id=~SDMVPSU,
+                        strata=~SDMVSTRA,
+                        weights=~WTINT2YR,
+                        nest=TRUE,
+                        data=dat)
+
+null_model<-svyglm(formula = "ph~RIDAGEYR+gender+race+edu+ses+BMXBMI+mh",design=nhanesdesign,family=quasipoisson,data=dat)
+#race  not significant will remove from null model and won't use in fixvar
+null_model<-svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+diab",design=nhanesdesign,family=quasipoisson,data=dat)
+
+
+
+###########
+#2-Way Int#
+###########
+fsafit_ph_2<-FSA(formula = "ph~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 2,
+                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
+                 var4int = "diab",fixvar =  c(adjust4b[c(1:2,4:6)],"mh")
+                 )
+
+tab1<-data.frame(print(fsafit_ph_2))
+
+###########
+#3-Way Int#
+###########
+fsafit_ph_3<-FSA(formula = "ph~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 3,
+                  numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
+                 var4int = "diab",fixvar =  c(adjust4b[c(1:2,4:6)],"mh")
+                 )
+
+tab2<-data.frame(print(fsafit_ph_3))
+
+```
+
+```{r, echo=FALSE}
+kable(tab1, caption = "Physical Health Results for Two-Way Interactions")
+plot_model(svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+LBXVIE*diab",
+                  design=nhanesdesign,family=quasipoisson,data=dat), type = "int",
+           title = "LBXVIE*diab")
+f2<-svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+LBXVIE*diab",
+                  design=nhanesdesign,family=quasipoisson,data=dat)
+```
+
+<!-- \clearpage -->
+<!-- \pagebreak -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- kable(tab2, caption = "Physical Health Results for Three-Way Interactions") -->
+<!-- plot_model(svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+LBXGTC*LBXALC*diab", -->
+<!--                   design=nhanesdesign,family=quasipoisson,data=dat), type = "int", -->
+<!--            title = "g-Tocopherol*AlphaCarotene*diab") -->
+<!-- ``` -->
+
+\clearpage
+\pagebreak
+
+## For AlphaCarotene, Vit E and Diabetic Complications
+> "Our results further support the hypothesis that eating a diet rich in carotenoids, especially provitamin A carotenoids, might help prevent the development of type 2 diabetes in Japanese patients." [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4679813/)
+
+> "Supplementation of vitamin E may be a valuable strategy for controlling diabetes complications and enhancing antioxidant capacity. The effects of other micronutrients should be further investigated in larger and well-designed trials to properly place these complementary therapies in clinical practice." From [here](https://dmsjournal.biomedcentral.com/articles/10.1186/s13098-018-0318-5)
+
