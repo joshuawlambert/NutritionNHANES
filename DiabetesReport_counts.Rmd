@@ -112,7 +112,7 @@ dim(dat[complete.cases(dat[,-c(7:10)]),])
 ###########
 fsafit_mh_2<-FSA(formula = "mh~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 2,
                   numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
-                 var4int = "diab",fixvar = c(adjust4b[c(1:2,4:5)],"ph")
+                 ,fixvar = c(adjust4b[c(1:2,4:5)],"ph")
                  )
 
 tab1<-data.frame(print(fsafit_mh_2))
@@ -164,7 +164,7 @@ null_model<-svyglm(formula = "ph~RIDAGEYR+gender+edu+ses+BMXBMI+mh+diab",design=
 ###########
 fsafit_ph_2<-FSA(formula = "ph~1",fitfunc = svyglm,family=quasipoisson,data=dat[,-c(7:10,35,36)],design=nhanesdesign,m = 2,
                   numrs = 30,cores = 40,interactions = TRUE,criterion = int.p.val,minmax = 'min',
-                 var4int = "diab",fixvar =  c(adjust4b[c(1:2,4:6)],"mh")
+                 fixvar =  c(adjust4b[c(1:2,4:6)],"mh")
                  )
 
 tab1<-data.frame(print(fsafit_ph_2))
