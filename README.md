@@ -1,2 +1,2 @@
-# DiabetesNHANES
-A repository for work exploring effect modification in Diabetics from the NHANES 2001-2006 data
+# NHANES
+A repository for work exploring effect modification in the NHANES 2001-2006 data
